@@ -28,7 +28,7 @@ func (file *SourceFile) Runes() []rune {
 	return []rune(string(file.byteSource))
 }
 func main() {
-	source, err := OpenSource("expr.w")
+	source, err := OpenSource("test-assets/expr.w")
 	if err != nil {
 		return
 	}
