@@ -3,37 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+
+	"github.com/matheuziz/wlang/src/sourcefile"
+	"github.com/matheuziz/wlang/src/tokenizer"
 )
 
-type SourceFile struct {
-	filename   string
-	byteSource []byte
-}
-
-func OpenSource(filename string) (*SourceFile, error) {
-	input, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	return &SourceFile{filename, input}, nil
-}
-
-func (file *SourceFile) Text() string {
-	return string(file.byteSource)
-}
-
-func (file *SourceFile) Runes() []rune {
-	return []rune(string(file.byteSource))
-}
 func main() {
-	source, err := OpenSource("test-assets/expr.w")
+	source, err := sourcefile.OpenSource("test-assets/expr.w")
 	if err != nil {
 		return
 	}
 
-	tokens, errs := Tokenize(source)
+	tokens, errs := tokenizer.Tokenize(source)
 	if len(errs) > 0 {
 		for _, err := range errs {
 			fmt.Println(err)
@@ -41,7 +22,7 @@ func main() {
 		return
 	}
 
-	tokenizedFile := TokenizedFile{source, tokens}
+	tokenizedFile := tokenizer.TokenizedFile{File: source, Tokens: tokens}
 
 	// parser := &Parser{TokenizedFile: &tokenizedFile}
 	// expr, _ := ParseExpression(parser, 0)

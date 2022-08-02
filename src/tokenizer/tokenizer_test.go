@@ -1,12 +1,14 @@
-package main
+package tokenizer
 
 import (
 	"testing"
+
+	"github.com/matheuziz/wlang/src/sourcefile"
 )
 
 func TestTokenizeOperators(t *testing.T) {
 	operators := ". = / * + - == <= >= < > ! !="
-	source := SourceFile{filename: "test", byteSource: []byte(operators)}
+	source := sourcefile.SourceFile{Filename: "test", ByteSource: []byte(operators)}
 	tokens, errs := Tokenize(&source)
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
@@ -30,7 +32,8 @@ func TestTokenizeOperators(t *testing.T) {
 
 func TestTokenizeKeywords(t *testing.T) {
 	operators := "if module class end loop"
-	source := SourceFile{filename: "test", byteSource: []byte(operators)}
+	source := sourcefile.SourceFile{Filename: "test", ByteSource: []byte(operators)}
+
 	tokens, errs := Tokenize(&source)
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
@@ -52,7 +55,8 @@ func TestTokenizeKeywords(t *testing.T) {
 
 func TestTokenizeVariableSizeTokens(t *testing.T) {
 	operators := "ideNtifier \"Thïs ìs á string\" 1337"
-	source := SourceFile{filename: "test", byteSource: []byte(operators)}
+	source := sourcefile.SourceFile{Filename: "test", ByteSource: []byte(operators)}
+
 	tokens, errs := Tokenize(&source)
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
@@ -74,7 +78,8 @@ func TestTokenizeVariableSizeTokens(t *testing.T) {
 
 func TestTokenizeMisc(t *testing.T) {
 	operators := ", [ ( ] ) \n  \n// *&qwneqwióó \n"
-	source := SourceFile{filename: "test", byteSource: []byte(operators)}
+	source := sourcefile.SourceFile{Filename: "test", ByteSource: []byte(operators)}
+
 	tokens, errs := Tokenize(&source)
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")

@@ -1,6 +1,10 @@
-package main
+package tokenizer
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/matheuziz/wlang/src/sourcefile"
+)
 
 // I'll use a proper enum someday (never)
 // TODO: Change to interned strings
@@ -63,7 +67,7 @@ type Token struct {
 
 // TODO: Use proper enums
 type Tokenization struct {
-	File   *SourceFile
+	File   *sourcefile.SourceFile
 	State  *string
 	Index  int
 	Line   int
@@ -71,8 +75,8 @@ type Tokenization struct {
 }
 
 type TokenizedFile struct {
-	file   *SourceFile
-	tokens []Token
+	File   *sourcefile.SourceFile
+	Tokens []Token
 }
 
 func (tk *Tokenization) CheckCharAt(index int) rune {
@@ -91,7 +95,7 @@ func (tk *Tokenization) Next() {
 }
 
 func (tk *Tokenization) Error(message string) error {
-	errorLine := fmt.Sprintf("tokenization error: %v at %v:%d:%d -- %+v", message, tk.File.filename, tk.Line, tk.Column, tk)
+	errorLine := fmt.Sprintf("tokenization error: %v at %v:%d:%d -- %+v", message, tk.File.Filename, tk.Line, tk.Column, tk)
 	// TODO: Add line context
 	return fmt.Errorf(errorLine)
 }
@@ -122,7 +126,7 @@ func (tk *Tokenization) IdentifierOrKeyword(identifier string) (token Token) {
 
 const MAX_TOKENIZER_ERROR = 10
 
-func Tokenize(src *SourceFile) (tokens []Token, errors []error) {
+func Tokenize(src *sourcefile.SourceFile) (tokens []Token, errors []error) {
 	tokenization := Tokenization{File: src, State: &StateInitial, Line: 1, Column: 1}
 	var currentPhrase []rune
 
