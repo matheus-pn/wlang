@@ -60,7 +60,7 @@ There are supposed to be only a VERY small set of Primitive Types:
 - Table
   > Works as both an Array and a Hash
 - String
-  > Text decoding/encoding, iteration and everything else you expect a string to do
+  > Text decoding/encoding, iteration and everything else you expect a string to do.
   > Maybe just use a Table of Number ? Or a struct with a table of Number and encoding
 - Number
   > Variable Length Integer/Float
