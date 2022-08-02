@@ -3,7 +3,12 @@ package main
 import "fmt"
 
 // I'll use a proper enum someday (never)
+// TODO: Change to interned strings
+// I want to have a nice stringy name for debbuging
+// while only having to compare a pointer
+
 // Tokens
+var TkEof = "Eof"
 var TkNewLine = "NewLine"
 var TkDot = "Dot"
 var TkComma = "Dot"
@@ -32,25 +37,21 @@ var TkLeftSquareBracket = "LeftSquareBracket"
 var TkRightSquareBracket = "RightSquareBracket"
 var TkLeftParens = "LeftParens"
 var TkRightParens = "RightParens"
+var TkColonEquals = "ColonEquals"
+var TkColon = "Colon"
 
-tokenization.State = "SeenBang"
-case ':':
-	tokenization.State = "SeenColon"
-case '=':
-	tokenization.State = "SeenEquals"
-case '>':
-	tokenization.State = "SeenGreaterThan"
-case '<':
-	tokenization.State = "SeenLessThan"
-case '/':
-	tokenization.State = "SeenFowardSlash"
-case '"':
-	tokenization.State = "SeenQuote"
 // States for the tokenizer
 var StateInitial = "Initial"
 var StateSeenBang = "SeenBang"
 var StateSeenColon = "SeenColon"
-var StateSeen
+var StateSeenEquals = "SeenEquals"
+var StateSeenGreaterThan = "SeenGreaterThan"
+var StateSeenLessThan = "SenLessThan"
+var StateSeenFowardSlash = "SeenFowardSlash"
+var StateSeenQuote = "SeenQuote"
+var StateSeenIdentifier = "SeenIdentifier"
+var StateSeenNumber = "SeenNumber"
+var StateInsideInlineComment = "InsideInlineComment"
 
 // TODO: Use proper enums
 type Token struct {
@@ -160,29 +161,29 @@ func Tokenize(src *SourceFile) (tokens []Token, errors []error) {
 			case ')':
 				tokens = append(tokens, tokenization.NewToken(&TkRightParens, ""))
 			case '!':
-				tokenization.State = "SeenBang"
+				tokenization.State = &StateSeenBang
 			case ':':
-				tokenization.State = "SeenColon"
+				tokenization.State = &StateSeenColon
 			case '=':
-				tokenization.State = "SeenEquals"
+				tokenization.State = &StateSeenEquals
 			case '>':
-				tokenization.State = "SeenGreaterThan"
+				tokenization.State = &StateSeenGreaterThan
 			case '<':
-				tokenization.State = "SeenLessThan"
+				tokenization.State = &StateSeenLessThan
 			case '/':
-				tokenization.State = "SeenFowardSlash"
+				tokenization.State = &StateSeenFowardSlash
 			case '"':
-				tokenization.State = "SeenQuote"
+				tokenization.State = &StateSeenQuote
 				currentPhrase = append(currentPhrase, letter)
 			default:
 				if letter >= 'a' && letter <= 'z' || letter >= 'A' && letter <= 'Z' || letter == '_' {
-					tokenization.State = "SeenIdentifier"
+					tokenization.State = &StateSeenIdentifier
 					currentPhrase = append(currentPhrase, letter)
 					break
 				}
 
 				if letter >= '0' && letter <= '9' {
-					tokenization.State = "SeenNumber"
+					tokenization.State = &StateSeenNumber
 					currentPhrase = append(currentPhrase, letter)
 					break
 				}
@@ -190,73 +191,73 @@ func Tokenize(src *SourceFile) (tokens []Token, errors []error) {
 				errors = append(errors, tokenization.Error(fmt.Sprintf("Unepected Rune %U %q", letter, letter)))
 			}
 
-		case "SeenFowardSlash":
+		case &StateSeenFowardSlash:
 			switch letter {
 			case '/':
-				tokenization.State = "InsideInlineComment"
+				tokenization.State = &StateInsideInlineComment
 				currentPhrase = append(currentPhrase, letter)
 			default:
-				tokens = append(tokens, tokenization.NewToken("FowardSlash", ""))
-				tokenization.State = "Initial"
+				tokens = append(tokens, tokenization.NewToken(&TkFowardSlash, ""))
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenColon":
+		case &StateSeenColon:
 			switch letter {
 			case '=':
-				tokenization.State = "Initial"
-				tokens = append(tokens, tokenization.NewToken("ColonEquals", ""))
+				tokenization.State = &StateInitial
+				tokens = append(tokens, tokenization.NewToken(&TkColonEquals, ""))
 			default:
-				tokens = append(tokens, tokenization.NewToken("Colon", ""))
-				tokenization.State = "Initial"
+				tokens = append(tokens, tokenization.NewToken(&TkColon, ""))
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenBang":
+		case &StateSeenBang:
 			switch letter {
 			case '=':
-				tokenization.State = "Initial"
-				tokens = append(tokens, tokenization.NewToken("BangEquals", ""))
+				tokenization.State = &StateInitial
+				tokens = append(tokens, tokenization.NewToken(&TkBangEquals, ""))
 			default:
-				tokens = append(tokens, tokenization.NewToken("Bang", ""))
-				tokenization.State = "Initial"
+				tokens = append(tokens, tokenization.NewToken(&TkBang, ""))
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenEquals":
+		case &StateSeenEquals:
 			switch letter {
 			case '=':
-				tokenization.State = "Initial"
-				tokens = append(tokens, tokenization.NewToken("EqualsEquals", ""))
+				tokenization.State = &StateInitial
+				tokens = append(tokens, tokenization.NewToken(&TkEqualsEquals, ""))
 			default:
-				tokens = append(tokens, tokenization.NewToken("Equal", ""))
-				tokenization.State = "Initial"
+				tokens = append(tokens, tokenization.NewToken(&TkEqual, ""))
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenGreaterThan":
+		case &StateSeenGreaterThan:
 			switch letter {
 			case '=':
-				tokenization.State = "Initial"
-				tokens = append(tokens, tokenization.NewToken("GreaterEquals", ""))
+				tokenization.State = &StateInitial
+				tokens = append(tokens, tokenization.NewToken(&TkGreaterEquals, ""))
 			default:
-				tokens = append(tokens, tokenization.NewToken("GreaterThan", ""))
-				tokenization.State = "Initial"
+				tokens = append(tokens, tokenization.NewToken(&TkGreaterThan, ""))
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenLessThan":
+		case &StateSeenLessThan:
 			switch letter {
 			case '=':
-				tokenization.State = "Initial"
-				tokens = append(tokens, tokenization.NewToken("LessEquals", ""))
+				tokenization.State = &StateInitial
+				tokens = append(tokens, tokenization.NewToken(&TkLessEquals, ""))
 			default:
-				tokens = append(tokens, tokenization.NewToken("LessThan", ""))
-				tokenization.State = "Initial"
+				tokens = append(tokens, tokenization.NewToken(&TkLessThan, ""))
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenIdentifier":
+		case &StateSeenIdentifier:
 			switch letter {
 			default:
 				if letter >= 'a' && letter <= 'z' || letter >= 'A' && letter <= 'Z' || letter == '_' || letter >= '0' && letter <= '9' {
@@ -266,12 +267,12 @@ func Tokenize(src *SourceFile) (tokens []Token, errors []error) {
 
 				tokens = append(tokens, tokenization.IdentifierOrKeyword(string(currentPhrase)))
 				currentPhrase = nil
-				tokenization.State = "Initial"
+				tokenization.State = &StateInitial
 				// Process the char that ended the identifier
 				goto retry
 			}
 
-		case "SeenNumber":
+		case &StateSeenNumber:
 			switch letter {
 			default:
 				if letter >= '0' && letter <= '9' {
@@ -279,31 +280,31 @@ func Tokenize(src *SourceFile) (tokens []Token, errors []error) {
 					break
 				}
 
-				tokens = append(tokens, tokenization.NewToken("Number", string(currentPhrase)))
+				tokens = append(tokens, tokenization.NewToken(&TkNumber, string(currentPhrase)))
 				currentPhrase = nil
-				tokenization.State = "Initial"
+				tokenization.State = &StateInitial
 				goto retry
 			}
 
-		case "SeenQuote":
+		case &StateSeenQuote:
 			switch letter {
 			case '"':
 				currentPhrase = append(currentPhrase, letter)
-				tokens = append(tokens, tokenization.NewToken("String", string(currentPhrase)))
+				tokens = append(tokens, tokenization.NewToken(&TkString, string(currentPhrase)))
 				currentPhrase = nil
-				tokenization.State = "Initial"
+				tokenization.State = &StateInitial
 
 			default:
 				currentPhrase = append(currentPhrase, letter)
 			}
 
-		case "InsideInlineComment":
+		case &StateInsideInlineComment:
 			switch letter {
 			case '\n':
 				// tokens = append(tokens, tokenization.NewToken("Comment", string(currentPhrase)))
 				// tokens = append(tokens, tokenization.NewToken("NewLine", ""))
 				currentPhrase = nil
-				tokenization.State = "Initial"
+				tokenization.State = &StateInitial
 			default:
 				currentPhrase = append(currentPhrase, letter)
 			}

@@ -53,7 +53,7 @@ type Parser struct {
 
 func (parser *Parser) CheckTokenAt(index int) Token {
 	if index >= len(parser.TokenizedFile.tokens) {
-		return Token{Flag: "EOF"}
+		return Token{Flag: &TkEof}
 	}
 	return parser.TokenizedFile.tokens[index]
 }
@@ -66,7 +66,7 @@ func (parser *Parser) Peek() Token {
 	return parser.CheckTokenAt(parser.Index + 1)
 }
 
-func Include(strs []string, s string) bool {
+func Include(strs []*string, s *string) bool {
 	for _, str := range strs {
 		if str == s {
 			return true
@@ -86,15 +86,15 @@ func (parser *Parser) NextWithoutWhitespace() {
 
 func (parser *Parser) SkipWhitespace() {
 	token := parser.CurrentToken()
-	for token.Flag == "NewLine" {
+	for token.Flag == &TkNewLine {
 		parser.Index++
 		token = parser.CurrentToken()
 	}
 }
 
-func (parser *Parser) WaitUntil(flag string) bool {
+func (parser *Parser) WaitUntil(flag *string) bool {
 	token := parser.CurrentToken()
-	return token.Flag != flag && token.Flag != "EOF"
+	return token.Flag != flag && token.Flag != &TkEof
 }
 
 func (parser *Parser) Error(message string, errorToken Token) error {
@@ -106,33 +106,37 @@ func (parser *Parser) Error(message string, errorToken Token) error {
 	return fmt.Errorf(errorLine)
 }
 
-func (parser *Parser) Expect(flags ...string) (token Token, err error) {
+func (parser *Parser) Expect(flags ...*string) (token Token, err error) {
 	token = parser.CurrentToken()
 
 	if !Include(flags, token.Flag) {
+		strFlags := []string{}
+		for _, f := range flags {
+			strFlags = append(strFlags, *f)
+		}
 		err = parser.Error(
-			fmt.Sprintf("expected one of %v got %v", strings.Join(flags, ", "), token.Flag),
+			fmt.Sprintf("expected one of %v got %v", strings.Join(strFlags, ", "), token.Flag),
 			token,
 		)
 	}
 	return
 }
 
-func (parser *Parser) ExpectConsumeWithWhitespace(flags ...string) (token Token, err error) {
+func (parser *Parser) ExpectConsumeWithWhitespace(flags ...*string) (token Token, err error) {
 	token, err = parser.Expect(flags...)
 	parser.Next()
 	return
 }
 
-func (parser *Parser) ExpectConsume(flags ...string) (token Token, err error) {
+func (parser *Parser) ExpectConsume(flags ...*string) (token Token, err error) {
 	token, err = parser.Expect(flags...)
 	parser.NextWithoutWhitespace()
 	return
 }
 
-func IsRHSOperator(operator string) bool {
+func IsRHSOperator(operator *string) bool {
 	switch operator {
-	case "Dot", "Plus", "Minus", "Star", "FowardSlash", "EqualsEquals", "BangEquals", "Equal":
+	case &TkDot, &TkPlus, &TkMinus, &TkStar, &TkFowardSlash, &TkEqualsEquals, &TkBangEquals, &TkEqual:
 		return true
 	default:
 		return false
@@ -140,13 +144,13 @@ func IsRHSOperator(operator string) bool {
 }
 
 // https://en.cppreference.com/w/c/language/operator_precedence
-func Assoc(operator string) int {
+func Assoc(operator *string) int {
 	// 1 => left-to-right
 	// 0 => right-to-left
 	switch operator {
-	case "Dot", "Plus", "Minus", "Star", "FowardSlash", "EqualsEquals", "BangEquals":
+	case &TkDot, &TkPlus, &TkMinus, &TkStar, &TkFowardSlash, &TkEqualsEquals, &TkBangEquals:
 		return 1
-	case "Equal":
+	case &TkEqual:
 		return 0
 	default:
 		return 1
@@ -155,17 +159,17 @@ func Assoc(operator string) int {
 
 // https://en.cppreference.com/w/c/language/operator_precedence
 // inverted here
-func Precedence(operator string) int {
+func Precedence(operator *string) int {
 	switch operator {
-	case "Equal":
+	case &TkEqual:
 		return 1
-	case "EqualsEquals", "BangEquals":
+	case &TkEqualsEquals, &TkBangEquals:
 		return 3
-	case "Plus", "Minus":
+	case &TkPlus, &TkMinus:
 		return 4
-	case "FowardSlash", "Star":
+	case &TkFowardSlash, &TkStar:
 		return 7
-	case "Dot":
+	case &TkDot:
 		return 14
 	default:
 		return 0
@@ -179,7 +183,7 @@ func RHSExpression(parser *Parser, leftExpr Expression, operation Token, nextPre
 		return rightExpr, err
 	}
 	leftExpr = Expression{
-		Operation: operation.Flag,
+		Operation: *operation.Flag,
 		Operands:  []Expression{leftExpr, rightExpr},
 		Position:  &operation,
 	}
@@ -192,41 +196,41 @@ func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
 
 	leftToken := parser.CurrentToken()
 	// Literal expression
-	if leftToken.Flag == "Number" || leftToken.Flag == "String" {
+	if leftToken.Flag == &TkNumber || leftToken.Flag == &TkString {
 		leftExpr, err = ParseLiteralExpression(parser)
 		if err != nil {
 			return leftExpr, err
 		}
 		// Parenthesised expression
-	} else if leftToken.Flag == "Identifier" {
+	} else if leftToken.Flag == &TkIdentifier {
 		parser.Next()
 		leftExpr = Expression{
 			Literal:   leftToken.Value,
 			Operation: "Variable",
 			Position:  &leftToken,
 		}
-	} else if leftToken.Flag == "LeftParens" {
+	} else if leftToken.Flag == &TkLeftParens {
 		parser.Next()
 		leftExpr, err = ParseExpression(parser, 0)
 		if err != nil {
 			return leftExpr, err
 		}
-		_, err = parser.ExpectConsume("RightParens")
+		_, err = parser.ExpectConsume(&TkRightParens)
 		if err != nil {
 			return leftExpr, err
 		}
 	} else {
 		return leftExpr, parser.Error(
-			"Unexpected token: "+leftToken.Flag+" on lhs of expression", leftToken,
+			"Unexpected token: "+*leftToken.Flag+" on lhs of expression", leftToken,
 		)
 	}
 
 	for {
 		token := parser.CurrentToken()
 		// Binary expression
-		if token.Flag == "NewLine" ||
-			token.Flag == "EOF" ||
-			token.Flag == "RightParens" {
+		if token.Flag == &TkNewLine ||
+			token.Flag == &TkEof ||
+			token.Flag == &TkRightParens {
 			return leftExpr, nil
 		}
 
@@ -243,7 +247,7 @@ func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
 			}
 		} else {
 			return leftExpr, parser.Error(
-				"Unexpected token: "+token.Flag+" on rhs of expression", token,
+				"Unexpected token: "+*token.Flag+" on rhs of expression", token,
 			)
 		}
 	}
@@ -251,14 +255,14 @@ func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
 }
 
 func ParseLiteralExpression(parser *Parser) (expr Expression, exprErr error) {
-	token, err := parser.ExpectConsumeWithWhitespace("Number", "String")
+	token, err := parser.ExpectConsumeWithWhitespace(&TkNumber, &TkString)
 	if err != nil {
 		exprErr = err
 		return
 	}
 
 	switch token.Flag {
-	case "Number":
+	case &TkNumber:
 		// TODO: Add floating point and hex
 		number, err := strconv.ParseInt(token.Value, 10, 64)
 		if err != nil {
@@ -267,7 +271,7 @@ func ParseLiteralExpression(parser *Parser) (expr Expression, exprErr error) {
 		}
 
 		expr = Expression{Operation: "NumberLiteral", Literal: number, Position: &token}
-	case "String":
+	case &TkString:
 		text := token.Value[1 : len(token.Value)-1]
 		expr = Expression{Operation: "StringLiteral", Literal: text, Position: &token}
 	}
@@ -277,17 +281,17 @@ func ParseLiteralExpression(parser *Parser) (expr Expression, exprErr error) {
 func ParseFunctionBody(parser *Parser, scope *Statement) error {
 	token := parser.CurrentToken()
 	switch token.Flag {
-	case "KeywordIf":
+	case &TkKeywordIf:
 		// TODO: parse if
 		parser.NextWithoutWhitespace()
-		for parser.WaitUntil("KeywordEnd") {
+		for parser.WaitUntil(&TkKeywordEnd) {
 			ParseFunctionBody(parser, scope)
 		}
 		parser.NextWithoutWhitespace()
-	case "KeywordLoop":
+	case &TkKeywordLoop:
 		// TODO: parse loop
 		parser.NextWithoutWhitespace()
-		for parser.WaitUntil("KeywordEnd") {
+		for parser.WaitUntil(&TkKeywordEnd) {
 			ParseFunctionBody(parser, scope)
 		}
 		parser.NextWithoutWhitespace()
@@ -307,17 +311,17 @@ func ParseFunctionBody(parser *Parser, scope *Statement) error {
 }
 
 func ParseFunction(parser *Parser, scope *Statement) (errs []error) {
-	_, err := parser.ExpectConsume("KeywordFunction")
+	_, err := parser.ExpectConsume(&TkKeywordFunction)
 	if err != nil {
 		errs = append(errs, err)
 	}
-	token, err := parser.ExpectConsume("Identifier")
+	token, err := parser.ExpectConsume(&TkIdentifier)
 	if err != nil {
 		errs = append(errs, err)
 	}
 	function := &Statement{Flag: "Function", Value: token}
 	ParseAttributesList(parser, function)
-	for parser.WaitUntil("KeywordEnd") {
+	for parser.WaitUntil(&TkKeywordEnd) {
 		// TODO: Parse statements inside function
 		err := ParseFunctionBody(parser, function)
 		if err != nil {
@@ -331,7 +335,7 @@ func ParseFunction(parser *Parser, scope *Statement) (errs []error) {
 }
 
 func ParseClassBody(parser *Parser, class *Statement) (errors []error) {
-	for parser.WaitUntil("KeywordEnd") {
+	for parser.WaitUntil(&TkKeywordEnd) {
 		errs := ParseFunction(parser, class)
 		errors = append(errors, errs...)
 	}
@@ -342,22 +346,22 @@ func ParseClassBody(parser *Parser, class *Statement) (errors []error) {
 func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 	// attribute list is optional
 	flag := parser.CurrentToken().Flag
-	if flag != "Identifier" && flag != "LeftParens" {
+	if flag != &TkIdentifier && flag != &TkLeftParens {
 		return
 	}
 
 	seenParens := false
-	if flag == "LeftParens" {
+	if flag == &TkLeftParens {
 		seenParens = true
 		parser.NextWithoutWhitespace()
 	}
 	flag = parser.CurrentToken().Flag
-	if flag == "RightParens" {
+	if flag == &TkRightParens {
 		return
 	}
 
 	for {
-		token, err := parser.ExpectConsume("Identifier")
+		token, err := parser.ExpectConsume(&TkIdentifier)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -365,7 +369,7 @@ func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 
 		token = parser.CurrentToken()
 
-		if token.Flag == "Equal" {
+		if token.Flag == &TkEqual {
 			parser.NextWithoutWhitespace()
 			// TODO: Add parse expression to default value of attribute
 			expr, err := ParseLiteralExpression(parser)
@@ -378,7 +382,7 @@ func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 
 		class.Statements = append(class.Statements, attribute)
 
-		if token.Flag == "Comma" {
+		if token.Flag == &TkComma {
 			parser.NextWithoutWhitespace()
 		} else {
 			// fmt.Println(token)
@@ -386,7 +390,7 @@ func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 		}
 	}
 	if seenParens {
-		_, err := parser.ExpectConsume("RightParens")
+		_, err := parser.ExpectConsume(&TkRightParens)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -396,11 +400,11 @@ func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 
 func ParseClassInheritance(parser *Parser, root *Statement) error {
 	// inheritance is optional
-	if parser.CurrentToken().Flag != "LessThan" {
+	if parser.CurrentToken().Flag != &TkLessThan {
 		return nil
 	}
-	parser.ExpectConsume("LessThan")
-	token, err := parser.ExpectConsume("Identifier")
+	parser.ExpectConsume(&TkLessThan)
+	token, err := parser.ExpectConsume(&TkIdentifier)
 	if err != nil {
 		return err
 	}
@@ -411,7 +415,7 @@ func ParseClassInheritance(parser *Parser, root *Statement) error {
 }
 
 func ParseClass(parser *Parser, root *Statement) (errors []error) {
-	token, err := parser.ExpectConsume("Identifier")
+	token, err := parser.ExpectConsume(&TkIdentifier)
 	class := Statement{Flag: "Class", Value: token}
 	if err != nil {
 		errors = append(errors, err)
@@ -429,7 +433,7 @@ func ParseClass(parser *Parser, root *Statement) (errors []error) {
 }
 
 func ParseModuleBody(parser *Parser, class *Statement) (errors []error) {
-	for parser.WaitUntil("KeywordEnd") {
+	for parser.WaitUntil(&TkKeywordEnd) {
 		errs := ParseStatement(parser, class)
 		errors = append(errors, errs...)
 	}
@@ -438,7 +442,7 @@ func ParseModuleBody(parser *Parser, class *Statement) (errors []error) {
 }
 
 func ParseModule(parser *Parser, root *Statement) (errors []error) {
-	token, err := parser.ExpectConsume("Identifier")
+	token, err := parser.ExpectConsume(&TkIdentifier)
 	module := Statement{Flag: "Module", Value: token}
 	if err != nil {
 		errors = append(errors, err)
@@ -453,18 +457,18 @@ func ParseStatement(parser *Parser, root *Statement) (errors []error) {
 	token := parser.CurrentToken()
 
 	switch token.Flag {
-	case "KeywordModule":
+	case &TkKeywordModule:
 		classErrors := ParseModule(parser, root)
 		errors = append(errors, classErrors...)
-	case "KeywordClass":
+	case &TkKeywordClass:
 		classErrors := ParseClass(parser, root)
 		errors = append(errors, classErrors...)
-	case "KeywordFunction":
+	case &TkKeywordFunction:
 		funcErrors := ParseFunction(parser, root)
 		errors = append(errors, funcErrors...)
 	default:
 		statement := Statement{Flag: "error-statement", Value: token}
-		errors = append(errors, parser.Error("expected statement, found "+token.Flag, token))
+		errors = append(errors, parser.Error("expected statement, found "+*token.Flag, token))
 		root.Statements = append(root.Statements, statement)
 	}
 	return
@@ -474,9 +478,9 @@ const MAX_PARSER_ERROR = 5
 
 func Parse(file *TokenizedFile) (root Statement, errors []error) {
 	parser := &Parser{TokenizedFile: file}
-	root = Statement{Flag: "Module", Value: Token{Flag: "Identifier", Value: "Main"}}
+	root = Statement{Flag: "Module", Value: Token{Flag: &TkIdentifier, Value: "Main"}}
 	parser.SkipWhitespace()
-	for parser.CurrentToken().Flag != "EOF" {
+	for parser.CurrentToken().Flag != &TkEof {
 		if len(errors) > MAX_PARSER_ERROR {
 			break
 		}

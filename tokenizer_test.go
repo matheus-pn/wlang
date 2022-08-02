@@ -11,16 +11,16 @@ func TestTokenizeOperators(t *testing.T) {
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
 	}
-	expectedTokenFlags := []string{
-		"Dot", "Equal", "FowardSlash", "Star", "Plus",
-		"Minus", "EqualsEquals", "LessEquals", "GreaterEquals",
-		"LessThan", "GreaterThan", "Bang", "BangEquals",
+	expectedTokenFlags := []*string{
+		&TkDot, &TkEqual, &TkFowardSlash, &TkStar, &TkPlus,
+		&TkMinus, &TkEqualsEquals, &TkLessEquals, &TkGreaterEquals,
+		&TkLessThan, &TkGreaterThan, &TkBang, &TkBangEquals,
 	}
 	if len(tokens) != len(expectedTokenFlags) {
 		t.Errorf("Expected %v tokens, got %v", len(expectedTokenFlags), len(tokens))
 	}
 	for i, flag := range expectedTokenFlags {
-		t.Run(flag, func(t2 *testing.T) {
+		t.Run(*flag, func(t2 *testing.T) {
 			if tokens[i].Flag != flag {
 				t2.Errorf("Expected Token %v to be %v", tokens[i].Flag, flag)
 			}
@@ -35,14 +35,14 @@ func TestTokenizeKeywords(t *testing.T) {
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
 	}
-	expectedTokenFlags := []string{
-		"KeywordIf", "KeywordModule", "KeywordClass", "KeywordEnd", "KeywordLoop",
+	expectedTokenFlags := []*string{
+		&TkKeywordIf, &TkKeywordModule, &TkKeywordClass, &TkKeywordEnd, &TkKeywordLoop,
 	}
 	if len(tokens) != len(expectedTokenFlags) {
 		t.Errorf("Expected %v tokens, got %v", len(expectedTokenFlags), len(tokens))
 	}
 	for i, flag := range expectedTokenFlags {
-		t.Run(flag, func(t2 *testing.T) {
+		t.Run(*flag, func(t2 *testing.T) {
 			if tokens[i].Flag != flag {
 				t2.Errorf("Expected Token %v to be %v", tokens[i].Flag, flag)
 			}
@@ -57,14 +57,14 @@ func TestTokenizeVariableSizeTokens(t *testing.T) {
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
 	}
-	expectedTokenFlags := []string{
-		"Identifier", "String", "Number",
+	expectedTokenFlags := []*string{
+		&TkIdentifier, &TkString, &TkNumber,
 	}
 	if len(tokens) != len(expectedTokenFlags) {
 		t.Errorf("Expected %v tokens, got %v", len(expectedTokenFlags), len(tokens))
 	}
 	for i, flag := range expectedTokenFlags {
-		t.Run(flag, func(t2 *testing.T) {
+		t.Run(*flag, func(t2 *testing.T) {
 			if tokens[i].Flag != flag {
 				t2.Errorf("Expected Token %v to be %v", tokens[i].Flag, flag)
 			}
@@ -79,15 +79,15 @@ func TestTokenizeMisc(t *testing.T) {
 	if len(errs) > 0 {
 		t.Errorf("Tokenization success expected")
 	}
-	expectedTokenFlags := []string{
-		"Comma", "LeftSquareBracket", "LeftParens",
-		"RightSquareBracket", "RightParens", "NewLine", "NewLine",
+	expectedTokenFlags := []*string{
+		&TkComma, &TkLeftSquareBracket, &TkLeftParens,
+		&TkRightSquareBracket, &TkRightParens, &TkNewLine, &TkNewLine,
 	}
 	if len(tokens) != len(expectedTokenFlags) {
 		t.Errorf("Expected %v tokens, got %v", len(expectedTokenFlags), len(tokens))
 	}
 	for i, flag := range expectedTokenFlags {
-		t.Run(flag, func(t2 *testing.T) {
+		t.Run(*flag, func(t2 *testing.T) {
 			if tokens[i].Flag != flag {
 				t2.Errorf("Expected Token %v to be %v", tokens[i].Flag, flag)
 			}
