@@ -176,9 +176,9 @@ func Precedence(operator *string) int {
 	}
 }
 
-func RHSExpression(parser *Parser, leftExpr Expression, operation Token, nextPrec int) (Expression, error) {
+func (parser *Parser) RHSExpression(leftExpr Expression, operation Token, nextPrec int) (Expression, error) {
 	parser.Next()
-	rightExpr, err := ParseExpression(parser, nextPrec)
+	rightExpr, err := parser.ParseExpression(nextPrec)
 	if err != nil {
 		return rightExpr, err
 	}
@@ -190,14 +190,14 @@ func RHSExpression(parser *Parser, leftExpr Expression, operation Token, nextPre
 	return leftExpr, nil
 }
 
-func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
+func (parser *Parser) ParseExpression(minPrec int) (Expression, error) {
 	var leftExpr Expression
 	var err error
 
 	leftToken := parser.CurrentToken()
 	// Literal expression
 	if leftToken.Flag == &TkNumber || leftToken.Flag == &TkString {
-		leftExpr, err = ParseLiteralExpression(parser)
+		leftExpr, err = parser.ParseLiteralExpression()
 		if err != nil {
 			return leftExpr, err
 		}
@@ -211,7 +211,7 @@ func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
 		}
 	} else if leftToken.Flag == &TkLeftParens {
 		parser.Next()
-		leftExpr, err = ParseExpression(parser, 0)
+		leftExpr, err = parser.ParseExpression(0)
 		if err != nil {
 			return leftExpr, err
 		}
@@ -241,7 +241,7 @@ func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
 
 		nextMinPrec := prec + Assoc(token.Flag)
 		if IsRHSOperator(token.Flag) {
-			leftExpr, err = RHSExpression(parser, leftExpr, token, nextMinPrec)
+			leftExpr, err = parser.RHSExpression(leftExpr, token, nextMinPrec)
 			if err != nil {
 				return leftExpr, err
 			}
@@ -254,7 +254,7 @@ func ParseExpression(parser *Parser, minPrec int) (Expression, error) {
 	return leftExpr, nil
 }
 
-func ParseLiteralExpression(parser *Parser) (expr Expression, exprErr error) {
+func (parser *Parser) ParseLiteralExpression() (expr Expression, exprErr error) {
 	token, err := parser.ExpectConsumeWithWhitespace(&TkNumber, &TkString)
 	if err != nil {
 		exprErr = err
@@ -296,7 +296,7 @@ func ParseFunctionBody(parser *Parser, scope *Statement) error {
 		}
 		parser.NextWithoutWhitespace()
 	default:
-		expr, err := ParseExpression(parser, 0)
+		expr, err := parser.ParseExpression(0)
 		parser.Next()
 		if err != nil {
 			return err
@@ -310,7 +310,7 @@ func ParseFunctionBody(parser *Parser, scope *Statement) error {
 	return nil
 }
 
-func ParseFunction(parser *Parser, scope *Statement) (errs []error) {
+func (parser *Parser) ParseFunction(scope *Statement) (errs []error) {
 	_, err := parser.ExpectConsume(&TkKeywordFunction)
 	if err != nil {
 		errs = append(errs, err)
@@ -336,7 +336,7 @@ func ParseFunction(parser *Parser, scope *Statement) (errs []error) {
 
 func ParseClassBody(parser *Parser, class *Statement) (errors []error) {
 	for parser.WaitUntil(&TkKeywordEnd) {
-		errs := ParseFunction(parser, class)
+		errs := parser.ParseFunction(class)
 		errors = append(errors, errs...)
 	}
 	parser.NextWithoutWhitespace()
@@ -372,7 +372,7 @@ func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 		if token.Flag == &TkEqual {
 			parser.NextWithoutWhitespace()
 			// TODO: Add parse expression to default value of attribute
-			expr, err := ParseLiteralExpression(parser)
+			expr, err := parser.ParseLiteralExpression()
 			attribute.Expression = &expr
 			token = parser.CurrentToken()
 			if err != nil {
@@ -398,7 +398,7 @@ func ParseAttributesList(parser *Parser, class *Statement) (errors []error) {
 	return
 }
 
-func ParseClassInheritance(parser *Parser, root *Statement) error {
+func (parser *Parser) ParseClassInheritance(root *Statement) error {
 	// inheritance is optional
 	if parser.CurrentToken().Flag != &TkLessThan {
 		return nil
@@ -414,13 +414,13 @@ func ParseClassInheritance(parser *Parser, root *Statement) error {
 	return nil
 }
 
-func ParseClass(parser *Parser, root *Statement) (errors []error) {
+func (parser *Parser) ParseClass(root *Statement) (errors []error) {
 	token, err := parser.ExpectConsume(&TkIdentifier)
 	class := Statement{Flag: "Class", Value: token}
 	if err != nil {
 		errors = append(errors, err)
 	}
-	err = ParseClassInheritance(parser, &class)
+	err = parser.ParseClassInheritance(&class)
 	if err != nil {
 		errors = append(errors, err)
 	}
@@ -432,39 +432,39 @@ func ParseClass(parser *Parser, root *Statement) (errors []error) {
 	return
 }
 
-func ParseModuleBody(parser *Parser, class *Statement) (errors []error) {
+func (parser *Parser) ParseModuleBody(class *Statement) (errors []error) {
 	for parser.WaitUntil(&TkKeywordEnd) {
-		errs := ParseStatement(parser, class)
+		errs := parser.ParseStatement(class)
 		errors = append(errors, errs...)
 	}
 	parser.NextWithoutWhitespace()
 	return
 }
 
-func ParseModule(parser *Parser, root *Statement) (errors []error) {
+func (parser *Parser) ParseModule(root *Statement) (errors []error) {
 	token, err := parser.ExpectConsume(&TkIdentifier)
 	module := Statement{Flag: "Module", Value: token}
 	if err != nil {
 		errors = append(errors, err)
 	}
-	errs := ParseModuleBody(parser, &module)
+	errs := parser.ParseModuleBody(&module)
 	errors = append(errors, errs...)
 	root.Statements = append(root.Statements, module)
 	return
 }
 
-func ParseStatement(parser *Parser, root *Statement) (errors []error) {
+func (parser *Parser) ParseStatement(root *Statement) (errors []error) {
 	token := parser.CurrentToken()
 
 	switch token.Flag {
 	case &TkKeywordModule:
-		classErrors := ParseModule(parser, root)
+		classErrors := parser.ParseModule(root)
 		errors = append(errors, classErrors...)
 	case &TkKeywordClass:
-		classErrors := ParseClass(parser, root)
+		classErrors := parser.ParseClass(root)
 		errors = append(errors, classErrors...)
 	case &TkKeywordFunction:
-		funcErrors := ParseFunction(parser, root)
+		funcErrors := parser.ParseFunction(root)
 		errors = append(errors, funcErrors...)
 	default:
 		statement := Statement{Flag: "error-statement", Value: token}
@@ -485,7 +485,7 @@ func Parse(file *TokenizedFile) (root Statement, errors []error) {
 			break
 		}
 
-		declErrors := ParseStatement(parser, &root)
+		declErrors := parser.ParseStatement(&root)
 		errors = append(errors, declErrors...)
 	}
 	if len(errors) > MAX_PARSER_ERROR {
