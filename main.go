@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	source, err := sourcefile.OpenSource("test-assets/expr.w")
+	source, err := sourcefile.OpenSource("test-assets/expr.wl")
 	if err != nil {
 		return
 	}
