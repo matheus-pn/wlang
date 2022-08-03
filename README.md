@@ -29,6 +29,7 @@ end
 ```
 
 The code above would then transpile to human readable C99 and be statically linked.
+Memory would be managed by the runtime. (Probably refcounted).
 Something like:
 ```c
 #include "wlang/runtime.h"
